@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>いろどり</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-database-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow-lg mb-6">
+        <div class="container mx-auto px-4 py-4">
+            <h1 class="text-3xl font-bold text-center text-indigo-600">
+                <i class="fas fa-comments mr-2"></i>
+                いろどりゲーム
+            </h1>
+            <p class="text-center text-gray-600 mt-2">Uji ketangguhan partikelmu</p>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 pb-24">
+        <!-- Chapter Selection -->
+        <div id="chapterSelection" class="space-y-4">
+            <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">Pilih Bab</h2>
+            <div id="chapterList" class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <!-- Chapters will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Quiz Game -->
+        <div id="quizGame" class="hidden">
+            <!-- Quiz Header -->
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <button id="backBtn"
+                        class="hidden bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors">
+                        <i class="fas fa-arrow-left mr-2"></i>Kembali
+                    </button>
+                    <div class="text-center">
+                        <h3 id="chapterTitle" class="text-xl font-bold text-indigo-600"></h3>
+                        <p id="progressInfo" class="text-gray-600"></p>
+                    </div>
+                    <div class="text-right">
+                        <div class="mb-2">
+                            <p class="text-sm text-gray-600">Waktu</p>
+                            <p id="timerDisplay" class="text-2xl font-bold text-green-600">60</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Skor</p>
+                            <p id="scoreDisplay" class="text-2xl font-bold text-green-600">0</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-3">
+                    <div id="progressBar" class="bg-indigo-600 h-3 rounded-full transition-all duration-300"
+                        style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Dialog Container -->
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <div id="dialogContainer" class="space-y-4">
+                    <!-- Dialog will be displayed here -->
+                </div>
+            </div>
+
+            <!-- Answer Options -->
+            <div id="answerOptions" class="hidden">
+                <h4 class="text-lg font-semibold mb-4 text-center">Pilih partikel yang tepat:</h4>
+                <div id="optionButtons" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                    <!-- Options will be displayed here -->
+                </div>
+                <div class="text-center">
+                    <button id="submitBtn"
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-lg text-lg font-semibold transition-colors disabled:opacity-50"
+                        disabled>
+                        Submit Jawaban
+                    </button>
+                </div>
+            </div>
+
+            <!-- Navigation -->
+            <div class="flex justify-center space-x-4 mt-6">
+                <button id="nextBtn"
+                    class="hidden bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors">
+                    Dialog Selanjutnya <i class="fas fa-arrow-right ml-2"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Results -->
+        <div id="resultsSection" class="hidden">
+            <div class="bg-white rounded-lg shadow-lg p-8 text-center">
+                <i class="fas fa-trophy text-yellow-500 text-6xl mb-4"></i>
+                <h2 class="text-3xl font-bold text-gray-800 mb-4">Selamat!</h2>
+                <p class="text-lg text-gray-600 mb-6">Anda telah menyelesaikan semua dialog dalam bab ini</p>
+                <div class="bg-indigo-50 rounded-lg p-6 mb-6">
+                    <p class="text-2xl font-bold text-indigo-600" id="finalScore">Skor Akhir: 0/0</p>
+                    <p class="text-gray-600 mt-2" id="accuracy">Akurasi: 0%</p>
+                </div>
+                <div class="space-x-4">
+                    <button id="restartBtn"
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors">
+                        Pilih Bab Lain
+                    </button>
+                    <button id="viewStatsBtn"
+                        class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors">
+                        Lihat Statistik
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Bottom Navigation -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg">
+        <div class="flex justify-around py-2">
+            <a href="/" class="flex flex-col items-center py-2 px-4 text-gray-400 hover:text-indigo-600">
+                <i class="fas fa-arrow-left text-xl"></i>
+                <span class="text-xs mt-1">Kembali</span>
+            </a>
+            <a href="/statistic"
+                class="flex flex-col items-center py-2 px-4 text-gray-400 hover:text-indigo-600 transition-colors">
+                <i class="fas fa-chart-bar text-xl"></i>
+                <span class="text-xs mt-1">Statistik</span>
+            </a>
+        </div>
+    </nav>
+
+    <script>
+        // Firebase configuration
+    const firebaseConfig = {
+        apiKey: "AIzaSyCgZmM850UYofD1p8zAAcntWlQczD462II",
+        authDomain: "projectslastdatabase.firebaseapp.com",
+        databaseURL: "https://projectslastdatabase-default-rtdb.firebaseio.com",
+        projectId: "projectslastdatabase",
+        storageBucket: "projectslastdatabase.firebasestorage.app",
+        messagingSenderId: "1093767116848",
+        appId: "1:1093767116848:web:cbc86211b86efd11c115f5",
+        measurementId: "G-TF5YS628BB"
+    };
+
+    // Initialize Firebase
+    const app = firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    class ParticleQuizGame {
+        constructor() {
+            this.chapters = [];
+            this.currentChapter = null;
+            this.currentDialogIndex = 0;
+            this.currentBlankIndex = 0;
+            this.score = 0;
+            this.totalQuestions = 0;
+            this.userAnswers = [];
+            this.currentBlanks = [];
+            this.selectedAnswer = null;
+            this.blankIdCounter = 0;
+
+            // Timer properties
+            this.timer = null;
+            this.timeLeft = 60;
+            this.isTimerActive = false;
+
+            this.init();
+        }
+
+        async init() {
+            await this.loadChapters();
+            this.bindEvents();
+            this.showChapterSelection();
+        }
+          // Updated loadChapters method to fetch from Firebase
+        async loadChapters() {
+            try {
+                const snapshot = await database.ref('data-dialog/chapters').once('value');
+                const data = snapshot.val();
+                
+                if (data) {
+                    // Convert Firebase object to array and transform the data structure
+                    this.chapters = Object.keys(data).map(key => {
+                        const chapter = data[key];
+                        // Convert dialogs object to array if it exists
+                        if (chapter.dialogs) {
+                            chapter.dialogs = Object.keys(chapter.dialogs).map(dialogKey => {
+                                const dialog = chapter.dialogs[dialogKey];
+                                return {
+                                    id: dialogKey,
+                                    ...dialog
+                                };
+                            });
+                        } else {
+                            chapter.dialogs = [];
+                        }
+                        return {
+                            id: key,
+                            ...chapter
+                        };
+                    });
+                    
+                    this.renderChapters();
+                } else {
+                    console.log('No data available');
+                    Swal.fire('Info', 'Belum ada data chapter tersedia', 'info');
+                }
+            } catch (error) {
+                console.error('Error loading chapters:', error);
+                Swal.fire('Error', 'Gagal memuat data dari Firebase', 'error');
+            }
+        }
+
+        renderChapters() {
+            const chapterList = document.getElementById('chapterList');
+
+            if (!chapterList) {
+                console.error('Element chapterList tidak ditemukan');
+                return;
+            }
+
+            chapterList.innerHTML = '';
+
+            this.chapters.forEach(chapter => {
+                const chapterCard = document.createElement('div');
+                chapterCard.className =
+                    'bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-indigo-300';
+                chapterCard.innerHTML = `
+                    <div class="text-center">
+                        <i class="fas fa-book text-indigo-600 text-3xl mb-3"></i>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2">${chapter.title}</h3>
+                        <p class="text-gray-600 text-sm">${chapter.dialogs.length} Dialog</p>
+                    </div>
+                `;
+                chapterCard.addEventListener('click', () => this.startChapter(chapter));
+                chapterList.appendChild(chapterCard);
+            });
+        }
+        
+            
+            // 2. Method untuk memulai timer
+            startTimer() {
+                this.timeLeft = 60;
+                this.isTimerActive = true;
+                this.updateTimerDisplay();
+
+                this.timer = setInterval(() => {
+                    this.timeLeft--;
+                    this.updateTimerDisplay();
+
+                    if (this.timeLeft <= 0) {
+                        this.timeUp();
+                    }
+                }, 1000);
+            }
+
+            // 3. Method untuk update tampilan timer
+            updateTimerDisplay() {
+                const timerElement = document.getElementById('timerDisplay');
+                if (timerElement) {
+                    timerElement.textContent = this.timeLeft;
+
+                    // Ubah warna jika waktu tinggal sedikit
+                    if (this.timeLeft <= 10) {
+                        timerElement.className = 'text-2xl font-bold text-red-600';
+                    } else if (this.timeLeft <= 20) {
+                        timerElement.className = 'text-2xl font-bold text-yellow-600';
+                    } else {
+                        timerElement.className = 'text-2xl font-bold text-green-600';
+                    }
+                }
+            }
+
+            // 4. Method ketika waktu habis
+            timeUp() {
+                this.stopTimer();
+
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Waktu Habis!',
+                    text: 'Anda akan diarahkan ke soal pertama untuk review.',
+                    timer: 2000,
+                    showConfirmButton: false
+                }).then(() => {
+                    window.location.reload();
+                });
+            }
+
+            // 5. Method untuk menghentikan timer
+            stopTimer() {
+                if (this.timer) {
+                    clearInterval(this.timer);
+                    this.timer = null;
+                    this.isTimerActive = false;
+                }
+            }
+            startChapter(chapter) {
+                this.currentChapter = chapter;
+                this.currentDialogIndex = 0;
+                this.currentBlankIndex = 0;
+                this.score = 0;
+                this.userAnswers = [];
+
+                // Calculate total questions
+                this.totalQuestions = 0;
+                chapter.dialogs.forEach(dialog => {
+                    dialog.conversation.forEach(line => {
+                        this.totalQuestions += line.blanks.length;
+                    });
+                });
+
+                this.showQuizGame();
+                this.startTimer(); // Mulai timer
+                this.displayCurrentDialog();
+            }
+             startChapter(chapter) {
+            this.currentChapter = chapter;
+            this.currentDialogIndex = 0;
+            this.currentBlankIndex = 0;
+            this.score = 0;
+            this.userAnswers = [];
+
+            // Calculate total questions
+            this.totalQuestions = 0;
+            chapter.dialogs.forEach(dialog => {
+                dialog.conversation.forEach(line => {
+                    this.totalQuestions += line.blanks.length;
+                });
+            });
+
+            this.showQuizGame();
+            this.startTimer();
+            this.displayCurrentDialog();
+        }
+
+        showChapterSelection() {
+            this.stopTimer();
+            document.getElementById('chapterSelection').classList.remove('hidden');
+            document.getElementById('quizGame').classList.add('hidden');
+            document.getElementById('resultsSection').classList.add('hidden');
+        }
+
+        showQuizGame() {
+            document.getElementById('chapterSelection').classList.add('hidden');
+            document.getElementById('quizGame').classList.remove('hidden');
+            document.getElementById('resultsSection').classList.add('hidden');
+
+            document.getElementById('chapterTitle').textContent = this.currentChapter.title;
+            this.updateProgressInfo();
+            this.updateScore();
+        }
+
+        displayCurrentDialog() {
+            const dialog = this.currentChapter.dialogs[this.currentDialogIndex];
+            const dialogContainer = document.getElementById('dialogContainer');
+
+            dialogContainer.innerHTML = '';
+            this.blankIdCounter = 0;
+
+            dialog.conversation.forEach((line, lineIndex) => {
+                const lineDiv = document.createElement('div');
+                lineDiv.className = 'mb-4 p-4 rounded-lg ' + (line.speaker === 'A' || line.speaker === '客' ? 'bg-blue-50 ml-8' : 'bg-gray-50 mr-8');
+
+                lineDiv.innerHTML = `
+                    <div class="font-semibold text-gray-700 mb-2">${line.speaker}:</div>
+                    <div class="text-lg japanese-text">${this.formatTextWithBlanks(line.text, line.blanks, lineIndex)}</div>
+                `;
+
+                dialogContainer.appendChild(lineDiv);
+            });
+
+            this.prepareCurrentQuestion();
+            this.updateTimerDisplay();
+        }
+
+        formatTextWithBlanks(text, blanks, lineIndex) {
+            let formattedText = text;
+
+            blanks.forEach((blank, blankIndex) => {
+                const blankId = `blank-${this.blankIdCounter}`;
+                formattedText = formattedText.replace('＿',
+                    `<span id="${blankId}" class="inline-block w-8 h-8 border-2 border-dashed border-indigo-400 rounded bg-white mx-1 text-center font-bold text-indigo-600"></span>`
+                );
+                this.blankIdCounter++;
+            });
+
+            return formattedText;
+        }
+            // Method baru untuk menghitung global blank index
+            getGlobalBlankIndex(dialogIndex, localBlankIndex) {
+                let globalIndex = 0;
+
+                // Hitung semua blank sebelum dialog saat ini
+                for (let i = 0; i < dialogIndex; i++) {
+                    this.currentChapter.dialogs[i].conversation.forEach(line => {
+                        globalIndex += line.blanks.length;
+                    });
+                }
+
+                // Tambahkan blank dalam dialog saat ini sampai index lokal
+                let currentLocalIndex = 0;
+                for (let line of this.currentChapter.dialogs[dialogIndex].conversation) {
+                    for (let blank of line.blanks) {
+                        if (currentLocalIndex === localBlankIndex) {
+                            return globalIndex;
+                        }
+                        globalIndex++;
+                        currentLocalIndex++;
+                    }
+                }
+
+                return globalIndex;
+            }
+
+            // Tambahkan method Fisher-Yates shuffle di dalam class ParticleQuizGame:
+            fisherYatesShuffle(array) {
+                // Create a copy to avoid mutating original array
+                const shuffled = [...array];
+
+                for (let i = shuffled.length - 1; i > 0; i--) {
+                    // Generate cryptographically secure random index
+                    const randomBytes = new Uint32Array(1);
+                    crypto.getRandomValues(randomBytes);
+                    const j = randomBytes[0] % (i + 1);
+
+                    // Swap elements
+                    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+                }
+
+                return shuffled;
+            }
+
+            // Ganti method showAnswerOptions() dengan ini:
+            // Ganti method showAnswerOptions() dengan ini:
+showAnswerOptions() {
+    const currentBlank = this.currentBlanks[this.currentBlankIndex];
+    document.getElementById('answerOptions').classList.remove('hidden');
+
+    const optionButtons = document.getElementById('optionButtons');
+    optionButtons.innerHTML = '';
+
+    // Shuffle options menggunakan Fisher-Yates dengan kriptografi
+    const shuffledOptions = this.fisherYatesShuffle(currentBlank.options);
+
+    shuffledOptions.forEach(option => {
+        const button = document.createElement('button');
+        button.className =
+            'bg-white border-2 border-gray-300 hover:border-indigo-400 text-gray-800 py-3 px-6 rounded-lg text-lg font-semibold transition-colors hover:bg-indigo-50';
+        button.textContent = option;
+        
+        // Langsung submit jawaban saat diklik
+        button.addEventListener('click', () => this.directSubmitAnswer(option, button));
+        optionButtons.appendChild(button);
+    });
+
+    // Sembunyikan submit button karena tidak diperlukan lagi
+    const submitBtn = document.getElementById('submitBtn');
+    if (submitBtn) {
+        submitBtn.style.display = 'none';
+    }
+}
+
+// Tambahkan method baru untuk direct submit:
+directSubmitAnswer(selectedAnswer, button) {
+    // Disable semua button untuk mencegah double click
+    document.querySelectorAll('#optionButtons button').forEach(btn => {
+        btn.disabled = true;
+    });
+
+    // Highlight selected answer
+    button.classList.remove('bg-white', 'text-gray-800', 'border-gray-300');
+    button.classList.add('bg-indigo-600', 'text-white', 'border-indigo-600');
+
+    const currentBlank = this.currentBlanks[this.currentBlankIndex];
+    const isCorrect = selectedAnswer === currentBlank.correct;
+
+    if (isCorrect) {
+        this.score++;
+        // Ubah button ke hijau untuk jawaban benar
+        button.classList.remove('bg-indigo-600', 'border-indigo-600');
+        button.classList.add('bg-green-600', 'border-green-600');
+        
+        Swal.fire({
+            icon: 'success',
+            title: 'Benar!',
+            text: `Partikel "${selectedAnswer}" adalah jawaban yang tepat!`,
+            timer: 1500,
+            showConfirmButton: false
+        });
+    } else {
+        // Ubah button ke merah untuk jawaban salah
+        button.classList.remove('bg-indigo-600', 'border-indigo-600');
+        button.classList.add('bg-red-600', 'border-red-600');
+        
+        // Highlight jawaban yang benar dengan warna hijau
+        document.querySelectorAll('#optionButtons button').forEach(btn => {
+            if (btn.textContent === currentBlank.correct) {
+                btn.classList.remove('bg-white', 'text-gray-800', 'border-gray-300');
+                btn.classList.add('bg-green-600', 'text-white', 'border-green-600');
+            }
+        });
+        
+        Swal.fire({
+            icon: 'error',
+            title: 'Salah!',
+            text: `Jawaban yang benar adalah "${currentBlank.correct}"`,
+            timer: 2000,
+            showConfirmButton: false
+        });
+    }
+
+    // Fill the blank menggunakan blankId yang sudah disimpan
+    const blankElement = document.getElementById(currentBlank.blankId);
+    if (blankElement) {
+        blankElement.textContent = selectedAnswer;
+        blankElement.className =
+            `inline-block w-8 h-8 border-2 rounded mx-1 text-center font-bold ${isCorrect ? 'border-green-500 bg-green-100 text-green-700' : 'border-red-500 bg-red-100 text-red-700'}`;
+    }
+
+    this.userAnswers.push({
+        question: currentBlank,
+        userAnswer: selectedAnswer,
+        isCorrect: isCorrect
+    });
+
+    this.currentBlankIndex++;
+    this.updateScore();
+    this.updateProgressInfo();
+
+    setTimeout(() => {
+        document.getElementById('answerOptions').classList.add('hidden');
+        this.prepareCurrentQuestion();
+    }, 2000);
+}
+
+// Ganti method selectAnswer() menjadi tidak digunakan (bisa dihapus atau dibiarkan kosong):
+selectAnswer(answer, button) {
+    // Method ini tidak digunakan lagi karena langsung submit
+    return;
+}
+            // Perbaikan untuk method prepareCurrentQuestion
+          prepareCurrentQuestion() {
+    // Build currentBlanks dengan ID yang benar
+    this.currentBlanks = [];
+    let blankIdIndex = 0;
+
+    this.currentChapter.dialogs[this.currentDialogIndex].conversation.forEach(line => {
+        line.blanks.forEach(blank => {
+            this.currentBlanks.push({
+                ...blank,
+                blankId: `blank-${blankIdIndex}`
+            });
+            blankIdIndex++;
+        });
+    });
+
+    if (this.currentBlankIndex < this.currentBlanks.length) {
+        this.showAnswerOptions();
+    } else {
+        // Auto next dialog tanpa button
+        this.autoNextDialog();
+    }
+}
+
+// Tambahkan method baru untuk auto next dialog:
+autoNextDialog() {
+    // Delay sebentar untuk transisi yang smooth
+    setTimeout(() => {
+        this.currentDialogIndex++;
+        this.currentBlankIndex = 0;
+
+        if (this.currentDialogIndex < this.currentChapter.dialogs.length) {
+            // Restart timer untuk dialog selanjutnya
+            this.stopTimer();
+            this.startTimer();
+            
+            this.displayCurrentDialog();
+        } else {
+            this.showResults();
+        }
+    }, 1000); // Delay 1 detik untuk memberikan feedback completion
+}
+            // Perbaikan untuk method submitAnswer
+            submitAnswer() {
+                if (!this.selectedAnswer) return;
+
+                const currentBlank = this.currentBlanks[this.currentBlankIndex];
+                const isCorrect = this.selectedAnswer === currentBlank.correct;
+
+                if (isCorrect) {
+                    this.score++;
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Benar!',
+                        text: `Partikel "${this.selectedAnswer}" adalah jawaban yang tepat!`,
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Salah!',
+                        text: `Jawaban yang benar adalah "${currentBlank.correct}"`,
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                }
+
+                // Fill the blank menggunakan blankId yang sudah disimpan
+                const blankElement = document.getElementById(currentBlank.blankId);
+                if (blankElement) {
+                    blankElement.textContent = this.selectedAnswer;
+                    blankElement.className =
+                        `inline-block w-8 h-8 border-2 rounded mx-1 text-center font-bold ${isCorrect ? 'border-green-500 bg-green-100 text-green-700' : 'border-red-500 bg-red-100 text-red-700'}`;
+                } else {
+                    console.log('Blank element not found:', currentBlank.blankId); // Debug
+                }
+
+                this.userAnswers.push({
+                    question: currentBlank,
+                    userAnswer: this.selectedAnswer,
+                    isCorrect: isCorrect
+                });
+
+                this.currentBlankIndex++;
+                this.updateScore();
+                this.updateProgressInfo();
+
+                setTimeout(() => {
+                    document.getElementById('answerOptions').classList.add('hidden');
+                    this.prepareCurrentQuestion();
+                }, 1500);
+            }
+
+            showResults() {
+                this.stopTimer();
+                document.getElementById('quizGame').classList.add('hidden');
+                document.getElementById('resultsSection').classList.remove('hidden');
+
+                const accuracy = Math.round((this.score / this.totalQuestions) * 100);
+                document.getElementById('finalScore').textContent =
+                    `Skor Akhir: ${this.score}/${this.totalQuestions}`;
+                document.getElementById('accuracy').textContent = `Akurasi: ${accuracy}%`;
+
+                // Save to localStorage
+                this.saveResults();
+            }
+
+            saveResults() {
+                const results = JSON.parse(localStorage.getItem('quizResults') || '[]');
+                const newResult = {
+                    date: new Date().toISOString(),
+                    chapter: this.currentChapter.title,
+                    score: this.score,
+                    total: this.totalQuestions,
+                    accuracy: Math.round((this.score / this.totalQuestions) * 100),
+                    answers: this.userAnswers
+                };
+
+                results.push(newResult);
+                localStorage.setItem('quizResults', JSON.stringify(results));
+            }
+
+            updateScore() {
+                document.getElementById('scoreDisplay').textContent = this.score;
+            }
+
+            updateProgressInfo() {
+                const answeredQuestions = this.userAnswers.length;
+                document.getElementById('progressInfo').textContent =
+                    `${answeredQuestions}/${this.totalQuestions} Soal`;
+
+                const progress = (answeredQuestions / this.totalQuestions) * 100;
+                document.getElementById('progressBar').style.width = `${progress}%`;
+            }
+
+            bindEvents() {
+                document.getElementById('backBtn').addEventListener('click', () => this.showChapterSelection());
+                document.getElementById('submitBtn').addEventListener('click', () => this.submitAnswer());
+                document.getElementById('nextBtn').addEventListener('click', () => this.nextDialog());
+                document.getElementById('restartBtn').addEventListener('click', () => this.showChapterSelection());
+                document.getElementById('viewStatsBtn').addEventListener('click', () => window.location.href =
+                    '/statistic');
+            }
+        }
+
+        // Initialize game when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new ParticleQuizGame();
+        });
+    </script>
+
+    <style>
+        .japanese-text {
+            font-family: 'Hiragino Sans', 'Yu Gothic', 'Meiryo', sans-serif;
+            line-height: 1.8;
+        }
+    </style>
+</body>
+
+</html>

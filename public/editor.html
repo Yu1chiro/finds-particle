@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Editor Dialog</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold text-center mb-8 text-gray-800">Panel Editor Dialog</h1>
+        
+        <!-- Status Firebase -->
+        <div id="firebase-status" class="bg-white p-4 rounded-lg shadow-md mb-6 text-center">
+            <span id="status-text" class="text-green-600 font-semibold">✓ Firebase siap digunakan</span>
+        </div>
+
+        <!-- Daftar Chapter -->
+        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold">Daftar Chapter</h2>
+                <button onclick="showAddChapterModal()" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+                    + Tambah Chapter
+                </button>
+            </div>
+            <div id="chapters-list" class="space-y-4">
+                <!-- Chapter akan dimuat di sini -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Tambah/Edit Chapter -->
+    <div id="chapter-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center">
+        <div class="bg-white p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
+            <h3 id="chapter-modal-title" class="text-lg font-semibold mb-4">Tambah Chapter</h3>
+            <form id="chapter-form">
+                <input type="hidden" id="chapter-id">
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Judul Chapter</label>
+                    <input type="text" id="chapter-title" class="w-full border rounded px-3 py-2" required>
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" onclick="hideChapterModal()" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">Batal</button>
+                    <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Dialog -->
+    <div id="dialog-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center">
+        <div class="bg-white p-6 rounded-lg shadow-lg max-w-4xl w-full mx-4 max-h-96 overflow-y-auto">
+            <h3 id="dialog-modal-title" class="text-lg font-semibold mb-4">Kelola Dialog</h3>
+            <div id="dialog-content">
+                <!-- Dialog content akan dimuat di sini -->
+            </div>
+            <div class="flex justify-end mt-4">
+                <button onclick="hideDialogModal()" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">Tutup</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Tambah/Edit Conversation -->
+    <div id="conversation-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center">
+        <div class="bg-white p-6 rounded-lg shadow-lg max-w-2xl w-full mx-4 max-h-96 overflow-y-auto">
+            <h3 id="conversation-modal-title" class="text-lg font-semibold mb-4">Tambah Percakapan</h3>
+            <form id="conversation-form">
+                <input type="hidden" id="current-chapter-id">
+                <input type="hidden" id="current-dialog-id">
+                <input type="hidden" id="current-conversation-index">
+                
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Speaker</label>
+                    <input type="text" id="conversation-speaker" class="w-full border rounded px-3 py-2" required>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Teks (gunakan _ untuk blank)</label>
+                    <textarea id="conversation-text" class="w-full border rounded px-3 py-2 h-20" required></textarea>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Blanks (opsional)</label>
+                    <div id="blanks-container">
+                        <!-- Blanks akan ditambahkan di sini -->
+                    </div>
+                    <button type="button" onclick="addBlank()" class="mt-2 bg-green-500 hover:bg-green-700 text-white text-sm py-1 px-2 rounded">+ Tambah Blank</button>
+                </div>
+                
+                <div class="flex justify-end space-x-2">
+                    <button type="button" onclick="hideConversationModal()" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">Batal</button>
+                    <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+   <script>
+    // Konfigurasi Firebase
+    const firebaseConfig = {
+        apiKey: "AIzaSyCgZmM850UYofD1p8zAAcntWlQczD462II",
+        authDomain: "projectslastdatabase.firebaseapp.com",
+        databaseURL: "https://projectslastdatabase-default-rtdb.firebaseio.com",
+        projectId: "projectslastdatabase",
+        storageBucket: "projectslastdatabase.firebasestorage.app",
+        messagingSenderId: "1093767116848",
+        appId: "1:1093767116848:web:cbc86211b86efd11c115f5",
+        measurementId: "G-TF5YS628BB"
+    };
+
+    let database;
+    let chapters = [];
+    let currentChapterId = null;
+    let currentDialogId = null;
+    let blankCounter = 0;
+
+    // Inisialisasi Firebase otomatis
+    function initFirebase() {
+        try {
+            firebase.initializeApp(firebaseConfig);
+            database = firebase.database();
+            document.getElementById('status-text').innerHTML = '✓ Firebase berhasil diinisialisasi';
+            loadChapters();
+        } catch (error) {
+            document.getElementById('status-text').innerHTML = '<span class="text-red-600">✗ Error: ' + error.message + '</span>';
+        }
+    }
+
+    // Inisialisasi otomatis saat halaman dimuat
+    window.addEventListener('load', initFirebase);
+
+    // Load chapters dari Firebase
+    function loadChapters() {
+        if (!database) return;
+        
+        database.ref('data-dialog/chapters').on('value', (snapshot) => {
+            chapters = [];
+            if (snapshot.exists()) {
+                snapshot.forEach((child) => {
+                    chapters.push({
+                        id: child.key,
+                        ...child.val()
+                    });
+                });
+            }
+            renderChapters();
+        });
+    }
+
+    // Render chapters
+    function renderChapters() {
+        const container = document.getElementById('chapters-list');
+        container.innerHTML = '';
+
+        if (chapters.length === 0) {
+            container.innerHTML = '<p class="text-gray-500">Belum ada chapter. Tambahkan chapter pertama!</p>';
+            return;
+        }
+
+        chapters.forEach(chapter => {
+            const chapterDiv = document.createElement('div');
+            chapterDiv.className = 'border rounded-lg p-4 bg-gray-50';
+            chapterDiv.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <h3 class="text-lg font-semibold">${chapter.title}</h3>
+                    <div class="space-x-2">
+                        <button onclick="showDialogs('${chapter.id}')" class="bg-blue-500 hover:bg-blue-700 text-white py-1 px-3 rounded text-sm">Kelola Dialog</button>
+                        <button onclick="editChapter('${chapter.id}', '${chapter.title}')" class="bg-yellow-500 hover:bg-yellow-700 text-white py-1 px-3 rounded text-sm">Edit</button>
+                        <button onclick="deleteChapter('${chapter.id}')" class="bg-red-500 hover:bg-red-700 text-white py-1 px-3 rounded text-sm">Hapus</button>
+                    </div>
+                </div>
+                <p class="text-sm text-gray-600 mt-2">Dialog: ${chapter.dialogs ? Object.keys(chapter.dialogs).length : 0}</p>
+            `;
+            container.appendChild(chapterDiv);
+        });
+    }
+
+    // Modal functions
+    function showAddChapterModal() {
+        document.getElementById('chapter-modal-title').textContent = 'Tambah Chapter';
+        document.getElementById('chapter-id').value = '';
+        document.getElementById('chapter-title').value = '';
+        document.getElementById('chapter-modal').classList.remove('hidden');
+    }
+
+    function hideChapterModal() {
+        document.getElementById('chapter-modal').classList.add('hidden');
+    }
+
+    function editChapter(id, title) {
+        document.getElementById('chapter-modal-title').textContent = 'Edit Chapter';
+        document.getElementById('chapter-id').value = id;
+        document.getElementById('chapter-title').value = title;
+        document.getElementById('chapter-modal').classList.remove('hidden');
+    }
+
+    // Chapter form submit
+    document.getElementById('chapter-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        if (!database) {
+            Swal.fire('Error!', 'Firebase belum diinisialisasi!', 'error');
+            return;
+        }
+
+        const id = document.getElementById('chapter-id').value;
+        const title = document.getElementById('chapter-title').value.trim();
+
+        if (!title) {
+            Swal.fire('Error!', 'Judul chapter tidak boleh kosong!', 'error');
+            return;
+        }
+
+        const chapterData = {
+            title: title,
+            dialogs: id && chapters.find(c => c.id === id)?.dialogs || {}
+        };
+
+        const ref = id ? database.ref(`data-dialog/chapters/${id}`) : database.ref('data-dialog/chapters').push();
+        
+        ref.set(chapterData).then(() => {
+            Swal.fire('Berhasil!', `Chapter ${id ? 'diperbarui' : 'ditambahkan'}!`, 'success');
+            hideChapterModal();
+        }).catch((error) => {
+            Swal.fire('Error!', 'Gagal menyimpan: ' + error.message, 'error');
+        });
+    });
+
+    // Delete chapter
+    function deleteChapter(id) {
+        Swal.fire({
+            title: 'Yakin ingin menghapus?',
+            text: "Chapter dan semua dialog akan dihapus!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Ya, hapus!',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                database.ref(`data-dialog/chapters/${id}`).remove().then(() => {
+                    Swal.fire('Berhasil!', 'Chapter berhasil dihapus!', 'success');
+                }).catch((error) => {
+                    Swal.fire('Error!', 'Gagal menghapus: ' + error.message, 'error');
+                });
+            }
+        });
+    }
+
+    // Dialog functions
+function showDialogs(chapterId) {
+    currentChapterId = chapterId;
+    const chapter = chapters.find(c => c.id === chapterId);
+    
+    document.getElementById('dialog-modal-title').textContent = `Kelola Dialog - ${chapter.title}`;
+    
+    const dialogContent = document.getElementById('dialog-content');
+    dialogContent.innerHTML = `
+        <div class="flex justify-between items-center mb-4">
+            <h4 class="text-lg font-medium">Daftar Dialog Group</h4>
+            <button onclick="showAddDialogModal()" class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-3 rounded text-sm">
+                + Tambah Dialog Group
+            </button>
+        </div>
+        <div id="dialogs-list" class="space-y-4">
+            ${renderDialogsList(chapter.dialogs || [])}
+        </div>
+    `;
+    
+    document.getElementById('dialog-modal').classList.remove('hidden');
+}
+function renderDialogsList(dialogs) {
+    // Handle case when dialogs is null/undefined
+    if (!dialogs) {
+        return '<p class="text-gray-500">Belum ada dialog group. Tambahkan dialog group pertama!</p>';
+    }
+
+    // Convert to array format
+    let dialogsArray = [];
+    if (Array.isArray(dialogs)) {
+        dialogsArray = dialogs;
+    } else if (typeof dialogs === 'object') {
+        dialogsArray = Object.entries(dialogs).map(([id, content]) => ({
+            id: id,
+            ...content
+        }));
+    }
+
+    if (dialogsArray.length === 0) {
+        return '<p class="text-gray-500">Belum ada dialog group. Tambahkan dialog group pertama!</p>';
+    }
+
+    let html = '';
+    dialogsArray.forEach(dialog => {
+        if (!dialog.id) {
+            console.warn('Dialog tanpa ID ditemukan:', dialog);
+            return; // Skip invalid entries
+        }
+        
+        html += `
+            <div class="border rounded-lg p-4 bg-gray-50">
+                <div class="flex justify-between items-center mb-2">
+                    <h5 class="font-medium">Dialog Group ${dialog.id}</h5>
+                    <div class="space-x-2">
+                        <button onclick="showConversations('${dialog.id}')" class="bg-blue-500 hover:bg-blue-700 text-white py-1 px-2 rounded text-xs">Kelola Percakapan</button>
+                        <button onclick="deleteDialog('${dialog.id}')" class="bg-red-500 hover:bg-red-700 text-white py-1 px-2 rounded text-xs">Hapus</button>
+                    </div>
+                </div>
+                <div class="text-sm text-gray-600">
+                    Percakapan: ${dialog.conversation ? dialog.conversation.length : 0}
+                </div>
+            </div>
+        `;
+    });
+    return html;
+}
+function showAddDialogModal() {
+    currentDialogId = null;
+    document.getElementById('conversation-modal-title').textContent = 'Tambah Dialog Baru';
+    document.getElementById('current-chapter-id').value = currentChapterId;
+    document.getElementById('current-dialog-id').value = '';
+    document.getElementById('current-conversation-index').value = '';
+    document.getElementById('conversation-speaker').value = '';
+    document.getElementById('conversation-text').value = '';
+    document.getElementById('blanks-container').innerHTML = '';
+    blankCounter = 0;
+    document.getElementById('conversation-modal').classList.remove('hidden');
+}
+
+function showConversations(dialogId) {
+    currentDialogId = dialogId;
+    const chapter = chapters.find(c => c.id === currentChapterId);
+    
+    // Find dialog - handle both array and object formats
+    let dialog;
+    if (Array.isArray(chapter.dialogs)) {
+        dialog = chapter.dialogs.find(d => d.id === dialogId);
+    } else if (typeof chapter.dialogs === 'object' && chapter.dialogs !== null) {
+        dialog = chapter.dialogs[dialogId] ? { id: dialogId, ...chapter.dialogs[dialogId] } : null;
+    }
+    
+    if (!dialog) {
+        dialog = { id: dialogId, conversation: [] };
+    }
+    
+    document.getElementById('dialog-content').innerHTML = `
+        <div class="flex justify-between items-center mb-4">
+            <h4 class="text-lg font-medium">Daftar Percakapan (Group ${dialogId})</h4>
+            <button onclick="addConversation('${dialogId}')" class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-3 rounded text-sm">
+                + Tambah Percakapan
+            </button>
+        </div>
+        <div id="conversations-list" class="space-y-4">
+            ${renderConversationsList(dialog.conversation || [])}
+        </div>
+        <div class="flex justify-end mt-4 space-x-2">
+            <button onclick="showDialogs('${currentChapterId}')" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-1 px-3 rounded text-sm">Kembali</button>
+        </div>
+    `;
+}
+
+function renderConversationsList(conversations) {
+        if (!conversations || conversations.length === 0) {
+            return '<p class="text-gray-500">Belum ada percakapan. Tambahkan percakapan pertama!</p>';
+        }
+        
+        let html = '';
+        conversations.forEach((conv, index) => {
+            html += `
+                <div class="border rounded-lg p-4 bg-gray-50">
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <h5 class="font-medium">${conv.speaker}</h5>
+                            <p class="text-sm">${conv.text}</p>
+                        </div>
+                        <div class="space-x-2">
+                            <button onclick="editConversation('${currentDialogId}', ${index})" class="bg-yellow-500 hover:bg-yellow-700 text-white py-1 px-2 rounded text-xs">Edit</button>
+                            <button onclick="deleteConversation('${currentDialogId}', ${index})" class="bg-red-500 hover:bg-red-700 text-white py-1 px-2 rounded text-xs">Hapus</button>
+                        </div>
+                    </div>
+                    ${renderBlanksList(conv.blanks || [])}
+                </div>
+            `;
+        });
+        return html;
+    }
+
+    function renderBlanksList(blanks) {
+        if (!blanks || blanks.length === 0) {
+            return '<div class="text-xs text-gray-500 mt-2">Tidak ada blanks</div>';
+        }
+        
+        let html = '<div class="mt-2"><h6 class="text-xs font-semibold">Blanks:</h6><ul class="list-disc list-inside text-xs">';
+        blanks.forEach(blank => {
+            html += `<li>Posisi ${blank.position}: ${blank.options.join(', ')} (Jawaban: ${blank.correct})</li>`;
+        });
+        html += '</ul></div>';
+        return html;
+    }
+
+    function hideDialogModal() {
+        document.getElementById('dialog-modal').classList.add('hidden');
+    }
+
+ function deleteDialog(dialogId) {
+    Swal.fire({
+        title: 'Yakin ingin menghapus dialog group ini?',
+        text: "Semua percakapan dalam dialog group ini akan dihapus!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Ya, hapus!',
+        cancelButtonText: 'Batal'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const chapter = chapters.find(c => c.id === currentChapterId);
+            
+            // Convert to array format if needed
+            if (!Array.isArray(chapter.dialogs)) {
+                if (typeof chapter.dialogs === 'object' && chapter.dialogs !== null) {
+                    chapter.dialogs = Object.keys(chapter.dialogs).map(key => {
+                        return { id: key, ...chapter.dialogs[key] };
+                    });
+                } else {
+                    chapter.dialogs = [];
+                }
+            }
+            
+            chapter.dialogs = chapter.dialogs.filter(d => d.id != dialogId);
+            
+            database.ref(`data-dialog/chapters/${currentChapterId}`).set(chapter).then(() => {
+                showDialogs(currentChapterId);
+                Swal.fire('Berhasil!', 'Dialog group berhasil dihapus!', 'success');
+            }).catch((error) => {
+                Swal.fire('Error!', 'Gagal menghapus: ' + error.message, 'error');
+            });
+        }
+    });
+}
+
+// Conversation functions
+    function addConversation(dialogId) {
+        currentDialogId = dialogId;
+        document.getElementById('conversation-modal-title').textContent = 'Tambah Percakapan';
+        document.getElementById('current-chapter-id').value = currentChapterId;
+        document.getElementById('current-dialog-id').value = dialogId;
+        document.getElementById('current-conversation-index').value = '';
+        document.getElementById('conversation-speaker').value = '';
+        document.getElementById('conversation-text').value = '';
+        document.getElementById('blanks-container').innerHTML = '';
+        blankCounter = 0;
+        document.getElementById('conversation-modal').classList.remove('hidden');
+    }
+
+    function editConversation(dialogId, conversationIndex) {
+        const chapter = chapters.find(c => c.id === currentChapterId);
+        const conversation = chapter.dialogs[dialogId].conversation[conversationIndex];
+        
+        currentDialogId = dialogId;
+        document.getElementById('conversation-modal-title').textContent = 'Edit Percakapan';
+        document.getElementById('current-chapter-id').value = currentChapterId;
+        document.getElementById('current-dialog-id').value = dialogId;
+        document.getElementById('current-conversation-index').value = conversationIndex;
+        document.getElementById('conversation-speaker').value = conversation.speaker;
+        document.getElementById('conversation-text').value = conversation.text;
+        
+        // Load existing blanks
+        const blanksContainer = document.getElementById('blanks-container');
+        blanksContainer.innerHTML = '';
+        blankCounter = 0;
+        
+        if (conversation.blanks) {
+            conversation.blanks.forEach(blank => {
+                addBlank(blank);
+            });
+        }
+        
+        document.getElementById('conversation-modal').classList.remove('hidden');
+    }
+
+    function deleteConversation(dialogId, conversationIndex) {
+        Swal.fire({
+            title: 'Yakin ingin menghapus percakapan ini?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Ya, hapus!',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const chapter = chapters.find(c => c.id === currentChapterId);
+                chapter.dialogs[dialogId].conversation.splice(conversationIndex, 1);
+                
+                database.ref(`data-dialog/chapters/${currentChapterId}`).set(chapter).then(() => {
+                    showConversations(dialogId);
+                    Swal.fire('Berhasil!', 'Percakapan berhasil dihapus!', 'success');
+                }).catch((error) => {
+                    Swal.fire('Error!', 'Gagal menghapus: ' + error.message, 'error');
+                });
+            }
+        });
+    }
+
+    function hideConversationModal() {
+        document.getElementById('conversation-modal').classList.add('hidden');
+    }
+
+    // Blank functions
+    function addBlank(existingBlank = null) {
+        blankCounter++;
+        const blanksContainer = document.getElementById('blanks-container');
+        const blankDiv = document.createElement('div');
+        blankDiv.className = 'border rounded p-3 mb-2 bg-gray-50';
+        blankDiv.id = `blank-${blankCounter}`;
+        
+        blankDiv.innerHTML = `
+            <div class="flex justify-between items-center mb-2">
+                <label class="text-sm font-semibold">Blank ${blankCounter}</label>
+                <button type="button" onclick="removeBlank('blank-${blankCounter}')" class="text-red-500 hover:text-red-700 text-sm">Hapus</button>
+            </div>
+            <div class="grid grid-cols-1 gap-2">
+                <div>
+                    <label class="text-xs text-gray-600">Posisi</label>
+                    <input type="number" class="blank-position w-full border rounded px-2 py-1 text-sm" value="${existingBlank ? existingBlank.position : ''}" required>
+                </div>
+                <div>
+                    <label class="text-xs text-gray-600">Opsi (pisahkan dengan koma)</label>
+                    <input type="text" class="blank-options w-full border rounded px-2 py-1 text-sm" value="${existingBlank ? existingBlank.options.join(',') : ''}" placeholder="の,は,に,を,が" required>
+                </div>
+                <div>
+                    <label class="text-xs text-gray-600">Jawaban Benar</label>
+                    <input type="text" class="blank-correct w-full border rounded px-2 py-1 text-sm" value="${existingBlank ? existingBlank.correct : ''}" required>
+                </div>
+            </div>
+        `;
+        
+        blanksContainer.appendChild(blankDiv);
+    }
+
+    function removeBlank(blankId) {
+        document.getElementById(blankId).remove();
+    }
+
+    // Conversation form submit
+   // Conversation form submit
+document.getElementById('conversation-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    if (!database) {
+        Swal.fire('Error!', 'Firebase belum diinisialisasi!', 'error');
+        return;
+    }
+
+    const chapterId = document.getElementById('current-chapter-id').value;
+    const dialogId = document.getElementById('current-dialog-id').value;
+    const conversationIndex = document.getElementById('current-conversation-index').value;
+    const speaker = document.getElementById('conversation-speaker').value.trim();
+    const text = document.getElementById('conversation-text').value.trim();
+
+    if (!speaker || !text) {
+        Swal.fire('Error!', 'Speaker dan teks tidak boleh kosong!', 'error');
+        return;
+    }
+
+    // Collect blanks
+    const blanks = [];
+    const blankDivs = document.querySelectorAll('#blanks-container > div');
+    
+    blankDivs.forEach(div => {
+        const position = parseInt(div.querySelector('.blank-position').value);
+        const optionsText = div.querySelector('.blank-options').value.trim();
+        const correct = div.querySelector('.blank-correct').value.trim();
+        
+        if (position && optionsText && correct) {
+            const options = optionsText.split(',').map(opt => opt.trim());
+            blanks.push({
+                position: position,
+                options: options,
+                correct: correct
+            });
+        }
+    });
+
+    const conversationData = {
+        speaker: speaker,
+        text: text,
+        blanks: blanks
+    };
+
+    const chapter = chapters.find(c => c.id === chapterId);
+    
+    if (!chapter.dialogs) {
+        chapter.dialogs = {};
+    }
+    
+// Di dalam event listener form conversation, ganti bagian pengolahan dialog dengan:
+
+// Convert dialogs to array format if it's still an object
+if (!Array.isArray(chapter.dialogs)) {
+    if (typeof chapter.dialogs === 'object' && chapter.dialogs !== null) {
+        chapter.dialogs = Object.keys(chapter.dialogs).map(key => {
+            return { id: key, ...chapter.dialogs[key] };
+        });
+    } else {
+        chapter.dialogs = [];
+    }
+}
+
+let newDialogId = dialogId;
+if (!dialogId || dialogId === '') {
+    // Pastikan dialogs adalah array
+    if (!Array.isArray(chapter.dialogs)) {
+        chapter.dialogs = [];
+    }
+    
+    // Generate new numeric ID
+    const dialogIds = chapter.dialogs.map(d => parseInt(d.id)).filter(id => !isNaN(id));
+    const maxId = dialogIds.length > 0 ? Math.max(...dialogIds) : 0;
+    newDialogId = (maxId + 1).toString();
+    
+    // Create new dialog group
+    chapter.dialogs.push({
+        id: newDialogId,
+        conversation: [conversationData]
+    });
+} else {
+    // Find existing dialog
+    const dialogIndex = chapter.dialogs.findIndex(d => d.id === dialogId);
+    
+    if (dialogIndex === -1) {
+        // If not found, create new one
+        chapter.dialogs.push({
+            id: newDialogId,
+            conversation: [conversationData]
+        });
+    } else {
+        if (conversationIndex === '') {
+            // Add new conversation
+            chapter.dialogs[dialogIndex].conversation.push(conversationData);
+        } else {
+            // Edit existing conversation
+            chapter.dialogs[dialogIndex].conversation[parseInt(conversationIndex)] = conversationData;
+        }
+    }
+}    
+database.ref(`data-dialog/chapters/${chapterId}`).set(chapter).then(() => {
+        Swal.fire('Berhasil!', `Percakapan ${conversationIndex === '' ? 'ditambahkan' : 'diperbarui'}!`, 'success');
+        hideConversationModal();
+        
+        if (conversationIndex === '') {
+            // If adding new conversation, refresh the conversations list
+            showConversations(newDialogId);
+        } else {
+            // If editing, just update the UI
+            const convList = document.getElementById('conversations-list');
+            if (convList) {
+                convList.innerHTML = renderConversationsList(chapter.dialogs[newDialogId].conversation || []);
+            }
+        }
+    }).catch((error) => {
+        Swal.fire('Error!', 'Gagal menyimpan: ' + error.message, 'error');
+    });
+});
+</script>
+</body>
+</html>

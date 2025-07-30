@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Quiz App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <style>
+        .loading {
+            display: none;
+        }
+        .loading.show {
+            display: inline-block;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 min-h-screen">
+    <div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
+    <div class="max-w-md w-full space-y-8 bg-white p-10 rounded-lg shadow-md">
+        <div class="text-center">
+            <div class="mx-auto h-16 w-16 bg-indigo-600 rounded-full flex items-center justify-center mb-4">
+                <svg class="h-8 w-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m0 0a2 2 0 012 2m-2-2a2 2 0 00-2 2m0 0a2 2 0 01-2 2m2-2H9m12 0v6a2 2 0 01-2 2H5a2 2 0 01-2-2V9a2 2 0 012-2h14a2 2 0 012 2z"/>
+                </svg>
+            </div>
+            <h2 class="text-3xl font-bold text-gray-900">Masuk ke Akun Anda</h2>
+            <p class="mt-2 text-sm text-gray-600">
+                Belum punya akun? 
+                <a href="/register" class="font-medium text-indigo-600 hover:text-indigo-500 transition-colors">
+                    Daftar di sini
+                </a>
+            </p>
+        </div>
+
+        <!-- Alert untuk menampilkan pesan -->
+        <div id="alert" class="hidden rounded-md p-4 mb-4">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg id="alert-icon" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <!-- Icon akan diubah via JavaScript -->
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <p id="alert-message" class="text-sm font-medium"></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Login Form -->
+        <form id="loginForm" class="mt-8 space-y-6">
+            <div class="space-y-4">
+                <div>
+                    <label for="username" class="block text-sm font-medium text-gray-700 mb-1">
+                        Username
+                    </label>
+                    <input 
+                        id="username" 
+                        name="username" 
+                        type="text" 
+                        required 
+                        class="appearance-none relative block w-full px-3 py-2.5 border border-gray-300 rounded-md placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 transition-all"
+                        placeholder="Masukkan username"
+                    >
+                </div>
+
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700 mb-1">
+                        Password
+                    </label>
+                    <input 
+                        id="password" 
+                        name="password" 
+                        type="password" 
+                        required 
+                        class="appearance-none relative block w-full px-3 py-2.5 border border-gray-300 rounded-md placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 transition-all"
+                        placeholder="Masukkan password"
+                    >
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <input 
+                        id="remember" 
+                        name="remember" 
+                        type="checkbox" 
+                        class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                    >
+                    <label for="remember" class="ml-2 block text-sm text-gray-700">
+                        Ingat saya
+                    </label>
+                </div>
+                <div class="text-sm">
+                    <a href="#" class="font-medium text-indigo-600 hover:text-indigo-500 transition-colors">
+                        Lupa password?
+                    </a>
+                </div>
+            </div>
+
+            <div>
+                <button 
+                    type="submit" 
+                    id="loginBtn"
+                    class="group relative w-full flex justify-center py-2.5 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                    <span class="loading mr-2 hidden">
+                        <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </span>
+                    <span id="loginBtnText">Masuk</span>
+                </button>
+            </div>
+        </form>
+
+        <div class="text-center">
+            <p class="text-xs text-gray-500">
+                Dengan masuk, Anda menyetujui 
+                <a href="#" class="text-indigo-600 hover:text-indigo-500">Terms of Service</a> 
+                dan 
+                <a href="#" class="text-indigo-600 hover:text-indigo-500">Privacy Policy</a>
+            </p>
+        </div>
+    </div>
+</div>
+
+   <script>
+    document.addEventListener('DOMContentLoaded', function() {
+    // DOM Elements
+    const loginForm = document.getElementById('loginForm');
+    const alertBox = document.getElementById('alert');
+    const alertIcon = document.getElementById('alert-icon');
+    const alertMessage = document.getElementById('alert-message');
+    const loginBtn = document.getElementById('loginBtn');
+    const loginBtnText = document.getElementById('loginBtnText');
+    const loadingSpinner = loginBtn.querySelector('.loading');
+    
+    // Show Alert Function
+    function showAlert(type, message) {
+        alertBox.classList.remove('hidden');
+        alertBox.classList.remove('bg-red-50', 'text-red-800');
+        alertBox.classList.remove('bg-green-50', 'text-green-800');
+        
+        if (type === 'error') {
+            alertBox.classList.add('bg-red-50', 'text-red-800');
+            alertIcon.innerHTML = `
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+            `;
+        } else {
+            alertBox.classList.add('bg-green-50', 'text-green-800');
+            alertIcon.innerHTML = `
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+            `;
+        }
+        
+        alertMessage.textContent = message;
+        
+        // Auto hide after 5 seconds
+        setTimeout(() => {
+            alertBox.classList.add('hidden');
+        }, 5000);
+    }
+    
+    // Handle Login Form Submission
+    loginForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        const remember = document.getElementById('remember').checked;
+        
+        // Show loading state
+        loginBtn.disabled = true;
+        loginBtnText.textContent = 'Memproses...';
+        loadingSpinner.classList.remove('hidden');
+        
+        try {
+            const response = await fetch('/api/login', {
+                method: 'POST',
+                credentials: 'include', // Penting untuk mengirim cookie
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username, password, remember })
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                showAlert('success', 'Login berhasil! Mengarahkan ke dashboard...');
+                
+                // Redirect to dashboard after 1.5 seconds
+                setTimeout(() => {
+                    window.location.href = '/dashboard';
+                }, 1500);
+            } else {
+                showAlert('error', data.message || 'Login gagal. Periksa username dan password Anda.');
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            showAlert('error', 'Terjadi kesalahan. Silakan coba lagi.');
+        } finally {
+            // Reset button state
+            loginBtn.disabled = false;
+            loginBtnText.textContent = 'Masuk';
+            loadingSpinner.classList.add('hidden');
+        }
+    });
+    
+    // Check for login error in URL params
+    const urlParams = new URLSearchParams(window.location.search);
+    const loginError = urlParams.get('error');
+    
+    if (loginError) {
+        showAlert('error', decodeURIComponent(loginError));
+    }
+});
+   </script>
+</body>
